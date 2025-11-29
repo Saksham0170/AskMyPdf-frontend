@@ -3,10 +3,12 @@ import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/ui/s
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { FileIcon, XIcon, FileTextIcon } from 'lucide-react';
+import { FileIcon, XIcon, FileTextIcon, UploadIcon } from 'lucide-react';
+import { useApi } from '@/hooks/use-api';
 
 const FileUpload = () => {
     const [files, setFiles] = useState<File[]>([]);
+    const { uploadFiles, isLoading, error } = useApi();
 
     const handleDrop = (newFiles: File[]) => {
         console.log('New files:', newFiles);
@@ -36,6 +38,21 @@ const FileUpload = () => {
             return <FileTextIcon className="h-4 w-4 text-red-500" />;
         }
         return <FileIcon className="h-4 w-4 text-gray-500" />;
+    };
+
+    const handleUpload = async () => {
+        if (files.length === 0) return;
+
+        try {
+            const result = await uploadFiles(files);
+            console.log('Upload successful:', result);
+            // Clear files after successful upload
+            setFiles([]);
+            // You can add toast notification here
+        } catch (err) {
+            console.error('Upload error:', err);
+            // You can add toast notification here
+        }
     };
 
     return (
@@ -111,6 +128,34 @@ const FileUpload = () => {
                             </Card>
                         ))}
                     </div>
+                </div>
+            )}
+
+            {/* Upload Button */}
+            {files.length > 0 && (
+                <div className="flex flex-col gap-2">
+                    <Button
+                        onClick={handleUpload}
+                        disabled={isLoading}
+                        className="w-full"
+                    >
+                        {isLoading ? (
+                            <>
+                                <span className="animate-spin mr-2">⏳</span>
+                                Uploading...
+                            </>
+                        ) : (
+                            <>
+                                <UploadIcon className="h-4 w-4 mr-2" />
+                                Upload {files.length} file{files.length !== 1 ? 's' : ''}
+                            </>
+                        )}
+                    </Button>
+                    {error && (
+                        <p className="text-sm text-destructive text-center">
+                            {error.message}
+                        </p>
+                    )}
                 </div>
             )}
         </div>

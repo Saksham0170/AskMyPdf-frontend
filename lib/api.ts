@@ -5,7 +5,7 @@
 export class ApiClient {
     private baseUrl: string
 
-    constructor(baseUrl: string = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000') {
+    constructor(baseUrl: string = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') {
         this.baseUrl = baseUrl
     }
 
@@ -33,6 +33,34 @@ export class ApiClient {
 
         if (!response.ok) {
             const error = await response.json().catch(() => ({ message: 'Request failed' }))
+            throw new Error(error.message || `HTTP ${response.status}`)
+        }
+
+        return response.json()
+    }
+
+    /**
+     * Upload files using FormData
+     * @param endpoint - API endpoint (e.g., '/api/upload')
+     * @param token - Clerk session token
+     * @param formData - FormData containing files
+     */
+    async uploadFiles(endpoint: string, token: string | null, formData: FormData) {
+        const headers: Record<string, string> = {}
+
+        // Add Clerk token to Authorization header
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`
+        }
+
+        const response = await fetch(`${this.baseUrl}${endpoint}`, {
+            method: 'POST',
+            headers,
+            body: formData,
+        })
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ message: 'Upload failed' }))
             throw new Error(error.message || `HTTP ${response.status}`)
         }
 

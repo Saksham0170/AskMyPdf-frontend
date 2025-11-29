@@ -44,5 +44,34 @@ export function useApi() {
         [getToken]
     )
 
-    return { fetchApi, isLoading, error }
+    const uploadFiles = useCallback(
+        async (files: File[]) => {
+            setIsLoading(true)
+            setError(null)
+
+            try {
+                // Get Clerk session token
+                const token = await getToken()
+
+                // Create FormData and add files with 'pdfs' key
+                const formData = new FormData()
+                files.forEach((file) => {
+                    formData.append('pdfs', file)
+                })
+
+                // Make authenticated upload request
+                const result = await api.uploadFiles('/api/upload', token, formData)
+                return result
+            } catch (err) {
+                const error = err instanceof Error ? err : new Error('Upload failed')
+                setError(error)
+                throw error
+            } finally {
+                setIsLoading(false)
+            }
+        },
+        [getToken]
+    )
+
+    return { fetchApi, uploadFiles, isLoading, error }
 }
