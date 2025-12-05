@@ -6,17 +6,26 @@ import { Card, CardContent } from '@/components/ui/card';
 import { FileIcon, XIcon, FileTextIcon, UploadIcon } from 'lucide-react';
 import { useApi } from '@/hooks/use-api';
 
-const FileUpload = () => {
+interface FileUploadProps {
+    selectedChatId: string | null;
+    onChatCreated?: (chatId: string) => void;
+    onUploadComplete?: () => void;
+    compact?: boolean;
+}
+
+const FileUpload = ({ selectedChatId, onChatCreated, onUploadComplete, compact = false }: FileUploadProps) => {
     const [files, setFiles] = useState<File[]>([]);
-    const { uploadFiles, isLoading, error } = useApi();
+    const { fetchApi, uploadFiles, isLoading, error } = useApi();
 
     const handleDrop = (newFiles: File[]) => {
         console.log('New files:', newFiles);
-        // Add new files to existing files (avoid duplicates)
+        // Add new files to existing files (avoid duplicates) with max 3 files limit
         setFiles(prevFiles => {
             const existingNames = prevFiles.map(f => f.name);
             const uniqueNewFiles = newFiles.filter(f => !existingNames.includes(f.name));
-            return [...prevFiles, ...uniqueNewFiles];
+            const combined = [...prevFiles, ...uniqueNewFiles];
+            // Limit to 3 files max
+            return combined.slice(0, 3);
         });
     };
 
@@ -44,10 +53,36 @@ const FileUpload = () => {
         if (files.length === 0) return;
 
         try {
-            const result = await uploadFiles(files);
-            console.log('Upload successful:', result);
-            // Clear files after successful upload
-            setFiles([]);
+            let chatId = selectedChatId;
+
+            // If no chat is selected (New Chat), create a new chat first
+            if (!chatId) {
+                const chatResponse = await fetchApi('/api/chat', {
+                    method: 'POST',
+                    body: JSON.stringify({})
+                });
+
+                console.log('Chat created:', chatResponse);
+                chatId = chatResponse.chatId;
+
+                // Notify parent component about new chat
+                if (chatId) {
+                    onChatCreated?.(chatId);
+                }
+            }
+
+            // Upload PDFs to the chat (new or existing)
+            if (chatId) {
+                const result = await uploadFiles(chatId, files);
+                console.log('Upload successful:', result);
+
+                // Clear files after successful upload
+                setFiles([]);
+
+                // Notify upload complete (for refreshing chats if uploading to existing)
+                onUploadComplete?.();
+            }
+
             // You can add toast notification here
         } catch (err) {
             console.error('Upload error:', err);
@@ -59,26 +94,28 @@ const FileUpload = () => {
         <div className="space-y-4">
             <Dropzone
                 accept={{ 'application/pdf': ['.pdf'] }}
-                maxFiles={10}
-                maxSize={1024 * 1024 * 25} // 25MB
+                maxFiles={3}
+                maxSize={1024 * 1024 * 3} // 3MB
                 onDrop={handleDrop}
                 onError={(error) => {
                     console.error('Upload error:', error);
                     // You can add toast notification here
                 }}
                 src={files.length > 0 ? files : undefined}
-                className="min-h-[120px]"
+                className={compact ? "min-h-[100px]" : "min-h-[200px]"}
             >
                 <DropzoneEmptyState>
-                    <div className="flex flex-col items-center justify-center py-6">
-                        <FileTextIcon className="h-8 w-8 text-muted-foreground mb-2" />
-                        <p className="text-sm font-medium mb-1">Upload PDF Files</p>
+                    <div className={`flex flex-col items-center justify-center ${compact ? 'py-4' : 'py-8'}`}>
+                        <FileTextIcon className={`${compact ? 'h-6 w-6' : 'h-10 w-10'} text-muted-foreground mb-2`} />
+                        <p className={`${compact ? 'text-sm' : 'text-base'} font-medium mb-1`}>Upload PDF Files</p>
                         <p className="text-xs text-muted-foreground text-center">
                             Drag and drop PDFs here, or click to select
                         </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                            Up to 25MB each, 10 files max
-                        </p>
+                        {!compact && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Up to 3MB each, 3 files max
+                            </p>
+                        )}
                     </div>
                 </DropzoneEmptyState>
                 <DropzoneContent>

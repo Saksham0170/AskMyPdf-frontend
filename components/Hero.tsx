@@ -33,7 +33,6 @@ export function Hero() {
                 </Link>
               </Button>
             </div>
-            <p className="text-sm text-muted-foreground">No signup required for a quick demo.</p>
           </div>
 
           <div className="relative mx-auto w-full max-w-xl lg:mx-0">

@@ -1,3 +1,4 @@
+'use client';
 import {
     Sidebar,
     SidebarContent,
@@ -9,52 +10,45 @@ import {
     SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import {
     MessageSquarePlus,
-    Search,
-    Upload,
+    MessageCircle,
 } from "lucide-react"
+import { useEffect } from "react"
 
-// Mock chat history data
-const chatHistory = [
-    { id: 1, title: "PDF Analysis Report", timestamp: "2 hours ago" },
-    { id: 2, title: "Contract Review Discussion", timestamp: "Yesterday" },
-    { id: 3, title: "Research Paper Summary", timestamp: "2 days ago" },
-    { id: 4, title: "Financial Document Q&A", timestamp: "3 days ago" },
-    { id: 5, title: "Legal Document Analysis", timestamp: "1 week ago" },
-    { id: 6, title: "Technical Specification Review", timestamp: "1 week ago" },
-    { id: 7, title: "Meeting Minutes Discussion", timestamp: "2 weeks ago" },
-    { id: 8, title: "Project Proposal Analysis", timestamp: "2 weeks ago" },
-    { id: 9, title: "User Manual Q&A", timestamp: "3 weeks ago" },
-    { id: 10, title: "Academic Paper Review", timestamp: "1 month ago" },
-    { id: 11, title: "Technical Specification Review", timestamp: "1 week ago" },
-    { id: 12, title: "Meeting Minutes Discussion", timestamp: "2 weeks ago" },
-    { id: 13, title: "Project Proposal Analysis", timestamp: "2 weeks ago" },
-    { id: 14, title: "User Manual Q&A", timestamp: "3 weeks ago" },
-    { id: 15, title: "Academic Paper Review", timestamp: "1 month ago" },
-]
+interface Chat {
+    id: string;
+    _id?: string;
+    userId: string;
+    createdAt: string;
+    identifier?: string | null;
+    pdfs?: Array<{ name: string; url: string }>;
+}
 
-export function AppSidebar() {
+interface AppSidebarProps {
+    chats: Chat[];
+    selectedChatId: string | null;
+    onChatSelect: (chatId: string | null) => void;
+    onRefreshChats: () => void;
+}
+
+export function AppSidebar({ chats, selectedChatId, onChatSelect, onRefreshChats }: AppSidebarProps) {
+    useEffect(() => {
+        onRefreshChats();
+    }, []);
     return (
         <Sidebar className="border-r">
             <SidebarHeader className="border-b p-4">
-
                 {/* Action Buttons */}
                 <div className="space-y-2">
-                    <Button variant="ghost" className="w-full justify-start" size="sm">
+                    <Button
+                        variant="ghost"
+                        className="w-full justify-start"
+                        size="sm"
+                        onClick={() => onChatSelect(null)}
+                    >
                         <MessageSquarePlus className="mr-2 h-4 w-4" />
                         New Chat
-                    </Button>
-
-                    <Button variant="ghost" className="w-full justify-start" size="sm">
-                        <Search className="mr-2 h-4 w-4" />
-                        Search Chats
-                    </Button>
-
-                    <Button variant="ghost" className="w-full justify-start" size="sm">
-                        <Upload className="mr-2 h-4 w-4" />
-                        Upload PDF
                     </Button>
                 </div>
             </SidebarHeader>
@@ -68,19 +62,38 @@ export function AppSidebar() {
                     {/* Scrollable Chat History */}
                     <div className="flex-1 overflow-y-auto px-2">
                         <SidebarMenu>
-                            {chatHistory.map((chat) => (
-                                <SidebarMenuItem key={chat.id}>
-                                    <SidebarMenuButton className="w-full justify-start p-3 h-auto">
-                                        <div className="flex items-start gap-3 w-full">
-                                            <div className="flex-1 min-w-0">
-                                                <div className="font-medium text-sm truncate">
-                                                    {chat.title}
+                            {chats.length === 0 ? (
+                                <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+                                    No chats yet. Upload a PDF to start!
+                                </div>
+                            ) : (
+                                chats.map((chat) => {
+                                    const chatId = chat.id || chat._id || '';
+                                    const isSelected = selectedChatId === chatId;
+                                    const displayName = chat.identifier || `Chat - ${new Date(chat.createdAt).toLocaleDateString()}`;
+                                    return (
+                                        <SidebarMenuItem key={chatId}>
+                                            <SidebarMenuButton
+                                                className={`w-full justify-start p-3 h-auto ${isSelected ? 'bg-accent' : ''
+                                                    }`}
+                                                onClick={() => onChatSelect(chatId)}
+                                            >
+                                                <div className="flex items-start gap-3 w-full">
+                                                    <MessageCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="font-medium text-sm truncate">
+                                                            {displayName}
+                                                        </div>
+                                                        <div className="text-xs text-muted-foreground">
+                                                            {new Date(chat.createdAt).toLocaleTimeString()}
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </div>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            ))}
+                                            </SidebarMenuButton>
+                                        </SidebarMenuItem>
+                                    );
+                                })
+                            )}
                         </SidebarMenu>
                     </div>
                 </SidebarGroup>
@@ -88,7 +101,7 @@ export function AppSidebar() {
 
             <SidebarFooter className="border-t p-4">
                 <div className="text-xs text-muted-foreground text-center">
-                    {chatHistory.length} conversations
+                    {chats.length} conversation{chats.length !== 1 ? 's' : ''}
                 </div>
             </SidebarFooter>
         </Sidebar>

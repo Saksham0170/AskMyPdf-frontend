@@ -7,7 +7,7 @@ const features = [
   },
   {
     title: "Ask Questions",
-    description: "Type natural questions about the document—no special prompts required.",
+    description: "Type natural questions about the document, no special prompts required.",
   },
   {
     title: "Instant AI Answers",
@@ -15,7 +15,7 @@ const features = [
   },
   {
     title: "Secure & Private",
-    description: "Your documents are handled securely and never shared without your consent.",
+    description: "Your documents are handled securely, privacy is our top priority.",
   },
 ]
 
