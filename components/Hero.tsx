@@ -24,12 +24,12 @@ export function Hero() {
           <h1 className="text-5xl md:text-6xl lg:text-7xl font-semibold leading-tight tracking-tight">
             Ask Questions
             <br />
-            from Your PDFs
+            from Any PDF
             <span className="text-purple-500"> Instantly.</span>
           </h1>
 
           <p className="text-lg md:text-xl text-muted-foreground max-w-lg">
-            Upload PDFs and get instant answers powered by AI — save hours,
+            Upload PDF and get instant answers powered by AI — save hours,
             understand documents faster, and work smarter.
           </p>
 

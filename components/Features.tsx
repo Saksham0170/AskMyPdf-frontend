@@ -93,7 +93,7 @@ export default function Features() {
                 Everything You Need
                 <br />
                 <span className='bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 dark:from-blue-400 dark:via-purple-400 dark:to-pink-400 bg-clip-text text-transparent'>
-                  To Master Your PDFs
+                  To Master Your PDF
                 </span>
               </motion.h1>
               
