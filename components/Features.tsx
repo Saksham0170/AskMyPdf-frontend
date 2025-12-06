@@ -42,12 +42,24 @@ const features = [
 export default function Features() {
   return (
     <ReactLenis root>
-      <main className='bg-[#0a0a0f]'>
+      {/* Global Background: 
+        Changed hardcoded #0a0a0f to adaptive bg-white/dark:bg-[#0a0a0f] 
+      */}
+      <main className='bg-white dark:bg-[#0a0a0f] transition-colors duration-300'>
+        
         {/* Hero Section */}
         <div className='wrapper'>
-          <section className='text-white h-screen w-full bg-[#0a0a0f] grid place-content-center sticky top-0 overflow-hidden'>
-            {/* Grid background */}
-            <div className='absolute inset-0 bg-[linear-gradient(to_right,#ffffff08_1px,transparent_1px),linear-gradient(to_bottom,#ffffff08_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]' />
+          <section className='h-screen w-full bg-white dark:bg-[#0a0a0f] grid place-content-center sticky top-0 overflow-hidden transition-colors duration-300'>
+            
+            {/* Grid background:
+               Added specific coloring for light mode (gray lines) and dark mode (white lines)
+            */}
+            <div className='absolute inset-0 
+              bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] 
+              dark:bg-[linear-gradient(to_right,#ffffff08_1px,transparent_1px),linear-gradient(to_bottom,#ffffff08_1px,transparent_1px)] 
+              bg-[size:4rem_4rem] 
+              [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]' 
+            />
             
             {/* Gradient orbs */}
             <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-[120px] animate-pulse" />
@@ -60,7 +72,13 @@ export default function Features() {
                 transition={{ duration: 0.8 }}
                 className='flex justify-center mb-6'
               >
-                <div className='inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 text-white/80 text-sm font-medium'>
+                {/* Badge: 
+                  Adapted to be dark text/border on light mode, white text/border on dark mode 
+                */}
+                <div className='inline-flex items-center gap-2 px-4 py-2 rounded-full 
+                  bg-black/5 border border-black/10 text-black/80 
+                  dark:bg-white/5 dark:border-white/10 dark:text-white/80 
+                  backdrop-blur-xl text-sm font-medium transition-colors duration-300'>
                   <Sparkles className='w-4 h-4' />
                   Powerful Features
                 </div>
@@ -70,11 +88,11 @@ export default function Features() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.2 }}
-                className='text-5xl md:text-7xl px-8 font-bold text-center tracking-tight leading-[120%] mb-6'
+                className='text-5xl md:text-7xl px-8 font-bold text-center tracking-tight leading-[120%] mb-6 text-gray-900 dark:text-white transition-colors duration-300'
               >
                 Everything You Need
                 <br />
-                <span className='bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent'>
+                <span className='bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 dark:from-blue-400 dark:via-purple-400 dark:to-pink-400 bg-clip-text text-transparent'>
                   To Master Your PDFs
                 </span>
               </motion.h1>
@@ -83,7 +101,7 @@ export default function Features() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.4 }}
-                className='text-xl text-white/60 text-center max-w-2xl mx-auto px-8 mb-8'
+                className='text-xl text-gray-500 dark:text-white/60 text-center max-w-2xl mx-auto px-8 mb-8 transition-colors duration-300'
               >
                 Scroll down to explore features 👇
               </motion.p>
@@ -92,7 +110,7 @@ export default function Features() {
         </div>
 
         {/* Sticky Cards Section */}
-        <section className='text-white w-full bg-[#0a0a0f] relative'>
+        <section className='w-full bg-white dark:bg-[#0a0a0f] relative transition-colors duration-300'>
           <div className='flex flex-col lg:flex-row justify-between lg:px-16 px-6 gap-12 lg:gap-0'>
             {/* Cards Column */}
             <div className='flex-1 grid gap-2'>
@@ -105,6 +123,7 @@ export default function Features() {
                       whileInView={{ opacity: 1, scale: 1 }}
                       viewport={{ once: true }}
                       transition={{ duration: 0.5 }}
+                      // Note: We keep text-white inside the card because the card background is always colorful/dark
                       className={`${feature.bg} ${feature.rotation} h-auto lg:h-96 w-full lg:w-[500px] rounded-3xl p-8 lg:p-10 grid gap-6 shadow-2xl relative overflow-hidden group hover:scale-105 transition-transform duration-300`}
                     >
                       {/* Noise texture overlay */}
@@ -119,12 +138,12 @@ export default function Features() {
                           <Icon className='w-full h-full text-white' />
                         </div>
                         
-                        {/* Title */}
+                        {/* Title - Always white due to card background */}
                         <h2 className='text-3xl lg:text-4xl font-bold text-white mb-3'>
                           {feature.title}
                         </h2>
                         
-                        {/* Description */}
+                        {/* Description - Always white due to card background */}
                         <p className='text-base lg:text-lg text-white/90 leading-relaxed'>
                           {feature.description}
                         </p>
@@ -143,10 +162,10 @@ export default function Features() {
                 viewport={{ once: true }}
                 transition={{ duration: 0.8 }}
               >
-                <h2 className='text-5xl xl:text-6xl px-8 font-bold text-center tracking-tight leading-[120%]'>
+                <h2 className='text-5xl xl:text-6xl px-8 font-bold text-center tracking-tight leading-[120%] text-gray-900 dark:text-white transition-colors duration-300'>
                   Built for
                   <br />
-                  <span className='bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent'>
+                  <span className='bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 dark:from-blue-400 dark:via-purple-400 dark:to-pink-400 bg-clip-text text-transparent'>
                     Power Users
                   </span>
                   <br />

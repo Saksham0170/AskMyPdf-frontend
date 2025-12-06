@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input"
 import FileUpload from "@/components/FileUpload"
 import { useState, useEffect, useRef } from "react"
 import { useApi } from "@/hooks/use-api"
-import { Loader2, FileText, ChevronLeft, ChevronRight, Plus, ChevronDown, ChevronUp } from "lucide-react"
+import { Loader2, FileText, ChevronLeft, ChevronRight, Plus, ChevronDown, ChevronUp, X, Trash2 } from "lucide-react"
 import { useDashboard } from "@/components/DashboardLayoutClient"
 
 interface Source {
@@ -217,6 +217,35 @@ export default function DashboardPage() {
     setCurrentPdfIndex(prev => Math.min(chatPdfs.length - 1, prev + 1));
   };
 
+  const handleDeletePdf = async () => {
+    if (!currentPdf) return;
+
+    const confirmDelete = window.confirm(`Are you sure you want to delete "${currentPdf.realName}"?`);
+    if (!confirmDelete) return;
+
+    try {
+      await fetchApi(`/api/files/delete/${currentPdf.id}`, {
+        method: 'DELETE'
+      });
+
+      // Refresh chat details to get updated PDF list
+      if (selectedChatId) {
+        const data: ChatDetails = await fetchApi(`/api/chat/${selectedChatId}`);
+        setChatDetails(data);
+
+        // Adjust current index if needed
+        if (currentPdfIndex >= data.pdfs.length && data.pdfs.length > 0) {
+          setCurrentPdfIndex(data.pdfs.length - 1);
+        } else if (data.pdfs.length === 0) {
+          setCurrentPdfIndex(0);
+        }
+      }
+    } catch (err) {
+      console.error('Error deleting PDF:', err);
+      alert('Failed to delete PDF. Please try again.');
+    }
+  };
+
   const toggleSources = (messageIndex: number) => {
     setExpandedSources(prev => {
       const newSet = new Set(prev);
@@ -293,29 +322,41 @@ export default function DashboardPage() {
         <div className="border-t p-3 flex-shrink-0 bg-card">
           <div className="flex items-center justify-between gap-2">
             <span className="text-sm font-medium truncate">{currentPdf?.realName || 'PDF Viewer'}</span>
-            {hasPdfs && chatPdfs.length > 1 && (
-              <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              {hasPdfs && (
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={handlePrevPdf}
-                  disabled={currentPdfIndex === 0}
+                  onClick={handleDeletePdf}
+                  className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <Trash2 className="h-4 w-4" />
                 </Button>
-                <span className="text-sm text-muted-foreground">
-                  PDF {currentPdfIndex + 1} / {chatPdfs.length}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleNextPdf}
-                  disabled={currentPdfIndex === chatPdfs.length - 1}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
+              )}
+              {hasPdfs && chatPdfs.length > 1 && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePrevPdf}
+                    disabled={currentPdfIndex === 0}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    PDF {currentPdfIndex + 1} / {chatPdfs.length}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleNextPdf}
+                    disabled={currentPdfIndex === chatPdfs.length - 1}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -334,13 +375,13 @@ export default function DashboardPage() {
               {messages.map((msg, idx) => (
                 <div key={idx} className="space-y-3">
                   {/* Question */}
-                  <div className="bg-primary/10 rounded-lg p-3">
-                    <p className="text-sm font-medium">Q: {msg.question}</p>
+                  <div className="bg-primary/5 rounded-2xl px-4 py-3 border border-primary/10">
+                    <p className="text-sm font-medium text-foreground">Q: {msg.question}</p>
                   </div>
 
                   {/* Answer */}
-                  <div className="bg-muted rounded-lg p-3">
-                    <p className="text-sm whitespace-pre-wrap">{msg.answer}</p>
+                  <div className="bg-muted/50 rounded-2xl px-4 py-3 border border-border/50">
+                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.answer}</p>
                   </div>
 
                   {/* Sources */}
@@ -399,15 +440,19 @@ export default function DashboardPage() {
 
         {/* Question Input - Fixed at bottom */}
         {hasPdfs && (
-          <div className="border-t p-4 flex-shrink-0">
-            <div className="flex gap-2">
+          <div className="border-t p-4 flex-shrink-0 bg-background/50 backdrop-blur-sm">
+            <div className="flex gap-2 items-end">
               <Button
                 variant="outline"
                 size="icon"
                 onClick={() => setShowUploadDialog(!showUploadDialog)}
-                className="shrink-0"
+                className={`shrink-0 rounded-xl ${showUploadDialog ? 'text-red-500 hover:text-red-600' : ''}`}
               >
-                <Plus className="h-4 w-4" />
+                {showUploadDialog ? (
+                  <X className="h-4 w-4" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
               </Button>
               <Input
                 placeholder="Ask Anything"
@@ -419,12 +464,13 @@ export default function DashboardPage() {
                     handleAskQuestion();
                   }
                 }}
-                className="flex-1"
+                className="flex-1 rounded-xl border-border/50"
               />
               <Button
                 type="button"
                 onClick={handleAskQuestion}
                 disabled={isAsking || !question.trim()}
+                className="shrink-0 rounded-xl bg-purple-600 hover:bg-purple-700 text-white px-5"
               >
                 {isAsking ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -435,8 +481,8 @@ export default function DashboardPage() {
             </div>
 
             {/* Upload Dialog */}
-            {showUploadDialog && (
-              <div className="mt-4 p-4 border rounded-lg bg-background">
+            <div className={`overflow-hidden transition-all duration-600 ease-in-out ${showUploadDialog ? 'max-h-96 opacity-100 mt-4' : 'max-h-0 opacity-0'}`}>
+              <div className="p-4 border rounded-xl bg-background">
                 <FileUpload
                   selectedChatId={selectedChatId}
                   onChatCreated={handleChatCreated}
@@ -444,7 +490,7 @@ export default function DashboardPage() {
                   compact={true}
                 />
               </div>
-            )}
+            </div>
           </div>
         )}
       </div>
