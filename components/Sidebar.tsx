@@ -74,19 +74,13 @@ export function AppSidebar({ chats, selectedChatId, onChatSelect, onRefreshChats
                                     return (
                                         <SidebarMenuItem key={chatId}>
                                             <SidebarMenuButton
-                                                className={`w-full justify-start p-3 h-auto ${isSelected ? 'bg-accent' : ''
+                                                className={`w-full justify-start px-3 py-2 h-auto ${isSelected ? 'bg-accent' : ''
                                                     }`}
                                                 onClick={() => onChatSelect(chatId)}
                                             >
-                                                <div className="flex items-start gap-3 w-full">
-                                                    <MessageCircle className="h-4 w-4 mt-0.5 shrink-0" />
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="font-medium text-sm truncate">
-                                                            {displayName}
-                                                        </div>
-                                                        <div className="text-xs text-muted-foreground">
-                                                            {new Date(chat.createdAt).toLocaleTimeString()}
-                                                        </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="text-sm truncate">
+                                                        {displayName}
                                                     </div>
                                                 </div>
                                             </SidebarMenuButton>

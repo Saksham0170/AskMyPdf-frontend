@@ -1,15 +1,23 @@
-import { Features } from "@/components/Features";
-import { Hero } from "@/components/Hero";
+
 import { AuthRedirect } from "@/components/AuthRedirect";
-import { HomeHeader } from "@/components/HomeHeader";
+import { Navbar } from "@/components/Navbar";
+import Features from "@/components/Features";
+import { Hero } from "@/components/Hero";
+import { Footer } from "@/components/footer";
 
 export default function Home() {
   return (
     <>
       <AuthRedirect />
-      <HomeHeader />
-      <Hero />
-      <Features />
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+
+        <Hero />
+
+        <Features />
+
+        <Footer />
+      </div>
     </>
   );
 }
