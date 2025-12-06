@@ -50,7 +50,7 @@ export function Hero() {
         >
           <div className="rounded-2xl p-2 bg-white/5 backdrop-blur-xl border border-white/20 shadow-xl">
             <Image
-              src="/placeholder.svg?height=500&width=700"
+              src="/mock-2.png"
               alt="AI answering PDF questions"
               width={1200}
               height={800}
