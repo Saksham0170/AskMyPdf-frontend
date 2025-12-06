@@ -13,8 +13,9 @@ import { Button } from "@/components/ui/button"
 import {
     MessageSquarePlus,
     MessageCircle,
+    Loader2,
 } from "lucide-react"
-import { useEffect } from "react"
+import { useEffect, useRef, useCallback } from "react"
 
 interface Chat {
     id: string;
@@ -30,12 +31,28 @@ interface AppSidebarProps {
     selectedChatId: string | null;
     onChatSelect: (chatId: string | null) => void;
     onRefreshChats: () => void;
+    loadMoreChats: () => void;
+    hasMoreChats: boolean;
+    isLoadingChats: boolean;
 }
 
-export function AppSidebar({ chats, selectedChatId, onChatSelect, onRefreshChats }: AppSidebarProps) {
+export function AppSidebar({ chats, selectedChatId, onChatSelect, onRefreshChats, loadMoreChats, hasMoreChats, isLoadingChats }: AppSidebarProps) {
+    const scrollRef = useRef<HTMLDivElement>(null);
+
     useEffect(() => {
         onRefreshChats();
     }, []);
+
+    const handleScroll = useCallback(() => {
+        const element = scrollRef.current;
+        if (!element || !hasMoreChats || isLoadingChats) return;
+
+        const { scrollTop, scrollHeight, clientHeight } = element;
+        // Load more when user scrolls to bottom (with 100px threshold)
+        if (scrollTop + clientHeight >= scrollHeight - 100) {
+            loadMoreChats();
+        }
+    }, [loadMoreChats, hasMoreChats, isLoadingChats]);
     return (
         <Sidebar className="border-r">
             <SidebarHeader className="border-b p-4">
@@ -60,33 +77,55 @@ export function AppSidebar({ chats, selectedChatId, onChatSelect, onRefreshChats
                     </div>
 
                     {/* Scrollable Chat History */}
-                    <div className="flex-1 overflow-y-auto px-2">
+                    <div className="flex-1 overflow-y-auto px-2" ref={scrollRef} onScroll={handleScroll}>
                         <SidebarMenu>
                             {chats.length === 0 ? (
                                 <div className="px-4 py-8 text-center text-sm text-muted-foreground">
                                     No chats yet. Upload a PDF to start!
                                 </div>
                             ) : (
-                                chats.map((chat) => {
-                                    const chatId = chat.id || chat._id || '';
-                                    const isSelected = selectedChatId === chatId;
-                                    const displayName = chat.identifier || `Chat - ${new Date(chat.createdAt).toLocaleDateString()}`;
-                                    return (
-                                        <SidebarMenuItem key={chatId}>
-                                            <SidebarMenuButton
-                                                className={`w-full justify-start px-3 py-2 h-auto ${isSelected ? 'bg-accent' : ''
-                                                    }`}
-                                                onClick={() => onChatSelect(chatId)}
-                                            >
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="text-sm truncate">
-                                                        {displayName}
+                                <>
+                                    {chats.map((chat) => {
+                                        const chatId = chat.id || chat._id || '';
+                                        const isSelected = selectedChatId === chatId;
+                                        const displayName = chat.identifier || `Chat - ${new Date(chat.createdAt).toLocaleDateString()}`;
+                                        return (
+                                            <SidebarMenuItem key={chatId}>
+                                                <SidebarMenuButton
+                                                    className={`w-full justify-start px-3 py-2 h-auto ${isSelected ? 'bg-accent' : ''
+                                                        }`}
+                                                    onClick={() => onChatSelect(chatId)}
+                                                >
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="text-sm truncate">
+                                                            {displayName}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            </SidebarMenuButton>
-                                        </SidebarMenuItem>
-                                    );
-                                })
+                                                </SidebarMenuButton>
+                                            </SidebarMenuItem>
+                                        );
+                                    })}
+                                    {hasMoreChats && (
+                                        <div className="px-4 py-2 flex justify-center">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={loadMoreChats}
+                                                disabled={isLoadingChats}
+                                                className="w-full"
+                                            >
+                                                {isLoadingChats ? (
+                                                    <>
+                                                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                                        Loading...
+                                                    </>
+                                                ) : (
+                                                    'Load More Chats'
+                                                )}
+                                            </Button>
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </SidebarMenu>
                     </div>

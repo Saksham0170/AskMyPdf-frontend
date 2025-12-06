@@ -74,7 +74,12 @@ export default function DashboardPage() {
   const [isLoadingPdf, setIsLoadingPdf] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [expandedSources, setExpandedSources] = useState<Set<number>>(new Set());
+  const [messagePage, setMessagePage] = useState(1);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [isLoadingMoreMessages, setIsLoadingMoreMessages] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const shouldScrollRef = useRef(true);
   const { fetchApi } = useApi();
 
   const chatPdfs = chatDetails?.pdfs || [];
@@ -85,9 +90,11 @@ export default function DashboardPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Auto-scroll when messages change
+  // Auto-scroll when messages change (but not when loading older messages)
   useEffect(() => {
-    scrollToBottom();
+    if (shouldScrollRef.current) {
+      scrollToBottom();
+    }
   }, [messages, isLoadingChat]);
 
   // Fetch chat details when selectedChatId changes
@@ -98,6 +105,8 @@ export default function DashboardPage() {
         setMessages([]);
         setCurrentPdfIndex(0);
         setPdfUrls(new Map());
+        setMessagePage(1);
+        setHasMoreMessages(false);
         return;
       }
 
@@ -106,14 +115,25 @@ export default function DashboardPage() {
 
       setIsLoadingChat(true);
       try {
-        const data: ChatDetails = await fetchApi(`/api/chat/${selectedChatId}`);
-        setChatDetails(data);
+        const response = await fetchApi(`/api/chat/${selectedChatId}?page=1&limit=10`);
+        // Handle both paginated and non-paginated responses
+        const data: ChatDetails = response.chat || response.data?.chat || response;
+        const messagesData = response.messages || response.data?.messages || data.messages || [];
+
+        setChatDetails({
+          ...data,
+          messages: messagesData
+        });
+
+        // Check if there are more messages
+        setHasMoreMessages(messagesData.length === 10);
+        setMessagePage(1);
 
         // Convert existing messages to display format
         const formattedMessages: Message[] = [];
-        for (let i = 0; i < data.messages.length; i += 2) {
-          const userMsg = data.messages[i];
-          const aiMsg = data.messages[i + 1];
+        for (let i = 0; i < messagesData.length; i += 2) {
+          const userMsg = messagesData[i];
+          const aiMsg = messagesData[i + 1];
 
           if (userMsg && userMsg.role === 'USER' && aiMsg && aiMsg.role === 'AI') {
             formattedMessages.push({
@@ -258,6 +278,66 @@ export default function DashboardPage() {
     });
   };
 
+  const loadMoreMessages = async () => {
+    if (!selectedChatId || !hasMoreMessages || isLoadingMoreMessages) return;
+
+    // Save current scroll position before loading
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const scrollHeightBefore = container.scrollHeight;
+    const scrollTopBefore = container.scrollTop;
+
+    // Disable auto-scroll when loading older messages
+    shouldScrollRef.current = false;
+
+    setIsLoadingMoreMessages(true);
+    try {
+      const nextPage = messagePage + 1;
+      const response = await fetchApi(`/api/chat/${selectedChatId}?page=${nextPage}&limit=10`);
+      const messagesData = response.messages || response.data?.messages || [];
+
+      // Convert new messages to display format
+      const formattedMessages: Message[] = [];
+      for (let i = 0; i < messagesData.length; i += 2) {
+        const userMsg = messagesData[i];
+        const aiMsg = messagesData[i + 1];
+
+        if (userMsg && userMsg.role === 'USER' && aiMsg && aiMsg.role === 'AI') {
+          formattedMessages.push({
+            question: userMsg.content,
+            answer: aiMsg.content,
+            sources: [],
+            timestamp: new Date(aiMsg.createdAt)
+          });
+        }
+      }
+
+      // Prepend older messages to the beginning
+      setMessages(prev => [...formattedMessages, ...prev]);
+      setHasMoreMessages(messagesData.length === 10);
+      setMessagePage(nextPage);
+
+      // Use requestAnimationFrame to ensure DOM has updated
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (container) {
+            const scrollHeightAfter = container.scrollHeight;
+            const addedHeight = scrollHeightAfter - scrollHeightBefore;
+            container.scrollTop = scrollTopBefore + addedHeight;
+          }
+          // Re-enable auto-scroll for new messages
+          shouldScrollRef.current = true;
+        });
+      });
+    } catch (err) {
+      console.error('Error loading more messages:', err);
+      shouldScrollRef.current = true;
+    } finally {
+      setIsLoadingMoreMessages(false);
+    }
+  };
+
   // No chat selected
   if (!selectedChatId) {
     return (
@@ -364,7 +444,7 @@ export default function DashboardPage() {
       {/* Right Panel - Chat Interface */}
       <div className="w-1/2 flex flex-col border rounded-lg bg-card overflow-hidden">
         {/* Conversation */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4">
           {isLoadingChat ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -372,6 +452,26 @@ export default function DashboardPage() {
             </div>
           ) : messages.length > 0 ? (
             <div className="space-y-4">
+              {/* Load More Messages Button */}
+              {hasMoreMessages && (
+                <div className="flex justify-center pb-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={loadMoreMessages}
+                    disabled={isLoadingMoreMessages}
+                  >
+                    {isLoadingMoreMessages ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Loading...
+                      </>
+                    ) : (
+                      'Load More Messages'
+                    )}
+                  </Button>
+                </div>
+              )}
               {messages.map((msg, idx) => (
                 <div key={idx} className="space-y-3">
                   {/* Question */}

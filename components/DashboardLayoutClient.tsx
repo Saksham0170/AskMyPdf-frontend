@@ -32,13 +32,16 @@ export const useDashboard = () => {
     return context;
 };
 
-function DashboardContent({ children, selectedChatId, setSelectedChatId, fetchUserChats, handleChatSelect, chats }: {
+function DashboardContent({ children, selectedChatId, setSelectedChatId, fetchUserChats, handleChatSelect, chats, loadMoreChats, hasMoreChats, isLoadingChats }: {
     children: ReactNode;
     selectedChatId: string | null;
     setSelectedChatId: (chatId: string | null) => void;
     fetchUserChats: () => void;
     handleChatSelect: (chatId: string | null) => void;
     chats: any[];
+    loadMoreChats: () => void;
+    hasMoreChats: boolean;
+    isLoadingChats: boolean;
 }) {
     const { setOpen, setOpenMobile } = useSidebar();
 
@@ -55,6 +58,9 @@ function DashboardContent({ children, selectedChatId, setSelectedChatId, fetchUs
                     selectedChatId={selectedChatId}
                     onChatSelect={setSelectedChatId}
                     onRefreshChats={fetchUserChats}
+                    loadMoreChats={loadMoreChats}
+                    hasMoreChats={hasMoreChats}
+                    isLoadingChats={isLoadingChats}
                 />
                 <div className="flex-1 flex flex-col overflow-hidden">
                     {/* Header with Sidebar Trigger */}
@@ -75,14 +81,40 @@ function DashboardContent({ children, selectedChatId, setSelectedChatId, fetchUs
 export function DashboardLayoutClient({ children }: { children: ReactNode }) {
     const [chats, setChats] = useState<Chat[]>([]);
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+    const [chatPage, setChatPage] = useState(1);
+    const [hasMoreChats, setHasMoreChats] = useState(true);
+    const [isLoadingChats, setIsLoadingChats] = useState(false);
     const { fetchApi } = useApi();
 
-    const fetchUserChats = async () => {
+    const fetchUserChats = async (page: number = 1, append: boolean = false) => {
+        if (isLoadingChats) return;
+
+        setIsLoadingChats(true);
         try {
-            const data = await fetchApi('/api/chat');
-            setChats(data || []);
+            const response = await fetchApi(`/api/chat?page=${page}&limit=20`);
+            // Handle both paginated and non-paginated responses
+            const chatData = response.chats || response.data?.chats || response;
+            const chatsArray = Array.isArray(chatData) ? chatData : [];
+
+            if (append) {
+                setChats(prev => [...prev, ...chatsArray]);
+            } else {
+                setChats(chatsArray);
+            }
+
+            // Check if there are more chats to load
+            setHasMoreChats(chatsArray.length === 20);
+            setChatPage(page);
         } catch (err) {
             console.error('Error fetching chats:', err);
+        } finally {
+            setIsLoadingChats(false);
+        }
+    };
+
+    const loadMoreChats = () => {
+        if (hasMoreChats && !isLoadingChats) {
+            fetchUserChats(chatPage + 1, true);
         }
     };
 
@@ -95,9 +127,12 @@ export function DashboardLayoutClient({ children }: { children: ReactNode }) {
             <DashboardContent
                 selectedChatId={selectedChatId}
                 setSelectedChatId={setSelectedChatId}
-                fetchUserChats={fetchUserChats}
+                fetchUserChats={() => fetchUserChats(1, false)}
                 handleChatSelect={handleChatSelect}
                 chats={chats}
+                loadMoreChats={loadMoreChats}
+                hasMoreChats={hasMoreChats}
+                isLoadingChats={isLoadingChats}
             >
                 {children}
             </DashboardContent>
