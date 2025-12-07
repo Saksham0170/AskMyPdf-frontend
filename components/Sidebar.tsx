@@ -12,7 +12,6 @@ import {
 import { Button } from "@/components/ui/button"
 import {
     MessageSquarePlus,
-    MessageCircle,
     Loader2,
 } from "lucide-react"
 import { useEffect, useRef, useCallback } from "react"
@@ -41,7 +40,7 @@ export function AppSidebar({ chats, selectedChatId, onChatSelect, onRefreshChats
 
     useEffect(() => {
         onRefreshChats();
-    }, []);
+    }, [onRefreshChats]);
 
     const handleScroll = useCallback(() => {
         const element = scrollRef.current;

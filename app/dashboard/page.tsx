@@ -155,7 +155,7 @@ export default function DashboardPage() {
     };
 
     fetchChatDetails();
-  }, [selectedChatId, fetchApi]);
+  }, [selectedChatId, fetchApi, closeSidebar]);
 
   // Fetch PDF URL when currentPdfIndex changes
   useEffect(() => {

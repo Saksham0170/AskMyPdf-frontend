@@ -38,7 +38,7 @@ function DashboardContent({ children, selectedChatId, setSelectedChatId, fetchUs
     setSelectedChatId: (chatId: string | null) => void;
     fetchUserChats: () => void;
     handleChatSelect: (chatId: string | null) => void;
-    chats: any[];
+    chats: Chat[];
     loadMoreChats: () => void;
     hasMoreChats: boolean;
     isLoadingChats: boolean;
