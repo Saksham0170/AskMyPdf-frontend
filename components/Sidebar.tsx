@@ -40,7 +40,8 @@ export function AppSidebar({ chats, selectedChatId, onChatSelect, onRefreshChats
 
     useEffect(() => {
         onRefreshChats();
-    }, [onRefreshChats]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleScroll = useCallback(() => {
         const element = scrollRef.current;
