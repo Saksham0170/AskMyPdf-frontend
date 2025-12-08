@@ -16,7 +16,7 @@
  */
 
 import { useAuth } from '@clerk/nextjs'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { api } from '@/lib/api'
 
 interface UploadUrlData {
@@ -31,13 +31,26 @@ interface PdfRecord {
     chatId: string;
     fileName: string;
     realName: string;
+    status?: string;
     createdAt: Date;
     updatedAt: Date;
+}
+
+interface PdfStatusResponse {
+    success: boolean;
+    data: {
+        total: number;
+        processing: number;
+        completed: number;
+        failed: number;
+    };
 }
 
 export function useApi() {
     const { getToken } = useAuth()
     const [isLoading, setIsLoading] = useState(false)
+    const [isProcessing, setIsProcessing] = useState(false)
+    const [processingStatus, setProcessingStatus] = useState<'uploading' | 'processing' | 'completed' | null>(null)
     const [error, setError] = useState<Error | null>(null)
 
     const fetchApi = useCallback(
@@ -63,8 +76,50 @@ export function useApi() {
         [getToken]
     )
 
+    const pollPdfStatus = useCallback(
+        async (pdfIds: string, token: string | null, onStatusChange?: (status: 'uploading' | 'processing' | 'completed' | null) => void): Promise<{ completed: number; failed: number }> => {
+            const maxAttempts = 20; // Poll for up to 20 attempts
+            const pollInterval = 4000; // Poll every 4 seconds
+
+            setIsProcessing(true);
+            setProcessingStatus('processing');
+
+            for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                try {
+                    const statusResponse: PdfStatusResponse = await api.fetch(`/api/files/status/${pdfIds}`, token);
+
+                    const { processing, failed, completed } = statusResponse.data;
+
+                    if (processing === 0) {
+                        setProcessingStatus('completed');
+                        setIsProcessing(false);
+
+                        await new Promise(resolve => setTimeout(resolve, 100));
+
+                        if (onStatusChange) {
+                            onStatusChange('completed');
+                        }
+
+                        return { completed, failed };
+                    }
+
+                    // Wait before next poll
+                    await new Promise(resolve => setTimeout(resolve, pollInterval));
+                } catch (err) {
+                    console.error('Error polling PDF status:', err);
+                    // Continue polling even if one request fails
+                }
+            }
+
+            setIsProcessing(false);
+            setProcessingStatus(null);
+            return { completed: 0, failed: 0 };
+        },
+        []
+    )
+
     const uploadFiles = useCallback(
-        async (chatId: string, files: File[]): Promise<PdfRecord[]> => {
+        async (chatId: string, files: File[], onStatusChange?: (status: 'uploading' | 'processing' | 'completed' | null) => void): Promise<PdfRecord[]> => {
             setIsLoading(true)
             setError(null)
 
@@ -106,6 +161,13 @@ export function useApi() {
                     body: JSON.stringify({ uploads })
                 })
 
+                const pdfIds = result.map(pdf => pdf.id).join(',');
+                const { completed, failed } = await pollPdfStatus(pdfIds, token, onStatusChange);
+
+                if (completed === 0) {
+                    throw new Error('All PDF processing failed. Please try again.');
+                }
+
                 return result
             } catch (err) {
                 const error = err instanceof Error ? err : new Error('Upload failed')
@@ -115,8 +177,8 @@ export function useApi() {
                 setIsLoading(false)
             }
         },
-        [getToken]
+        [getToken, pollPdfStatus]
     )
 
-    return { fetchApi, uploadFiles, isLoading, error }
+    return { fetchApi, uploadFiles, isLoading, isProcessing, processingStatus, error }
 }

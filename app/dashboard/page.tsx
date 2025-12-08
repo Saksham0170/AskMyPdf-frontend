@@ -2,10 +2,11 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import FileUpload from "@/components/FileUpload"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useApi } from "@/hooks/use-api"
 import { Loader2, FileText, ChevronLeft, ChevronRight, Plus, ChevronDown, ChevronUp, X, Trash2 } from "lucide-react"
 import { useDashboard } from "@/components/DashboardLayoutClient"
+import { toast } from "sonner"
 
 interface Source {
   fileName: string;
@@ -77,6 +78,8 @@ export default function DashboardPage() {
   const [messagePage, setMessagePage] = useState(1);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [isLoadingMoreMessages, setIsLoadingMoreMessages] = useState(false);
+  const [isProcessingFirstUpload, setIsProcessingFirstUpload] = useState(false);
+  const [uploadProcessingStatus, setUploadProcessingStatus] = useState<'uploading' | 'processing' | 'completed' | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const shouldScrollRef = useRef(true);
@@ -90,12 +93,50 @@ export default function DashboardPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Auto-scroll when messages change (but not when loading older messages)
+  const handleProcessingStatusChange = useCallback((status: 'uploading' | 'processing' | 'completed' | null) => {
+    setUploadProcessingStatus(status);
+  }, []);
+
+  const handleUploadComplete = useCallback(async () => {
+    if (!selectedChatId) return;
+
+    // Refresh chat details to get new PDFs
+    try {
+      const data: ChatDetails = await fetchApi(`/api/chat/${selectedChatId}`);
+      setChatDetails(data);
+
+      // Show the newly uploaded PDF (last one)
+      if (data.pdfs.length > 0) {
+        setCurrentPdfIndex(data.pdfs.length - 1);
+        toast.success('PDF(s) processed successfully!');
+      }
+
+      // Close the upload dialog
+      setShowUploadDialog(false);
+
+      // Clear processing state
+      setIsProcessingFirstUpload(false);
+      setUploadProcessingStatus(null);
+    } catch (err) {
+      console.error('Error refreshing chat:', err);
+      toast.error('Failed to refresh chat data');
+      setIsProcessingFirstUpload(false);
+      setUploadProcessingStatus(null);
+    }
+  }, [selectedChatId, fetchApi]);
+
+  // Auto-scroll when messages change 
   useEffect(() => {
     if (shouldScrollRef.current) {
       scrollToBottom();
     }
   }, [messages, isLoadingChat]);
+
+  useEffect(() => {
+    if (uploadProcessingStatus === 'completed' && isProcessingFirstUpload && selectedChatId) {
+      handleUploadComplete();
+    }
+  }, [uploadProcessingStatus, isProcessingFirstUpload, selectedChatId, handleUploadComplete]);
 
   // Fetch chat details when selectedChatId changes
   useEffect(() => {
@@ -178,30 +219,13 @@ export default function DashboardPage() {
     fetchPdfUrl();
   }, [currentPdf, pdfUrls, fetchApi]);
 
-  const handleChatCreated = (chatId: string) => {
+  const handleChatCreated = (chatId: string, isFirstUpload: boolean = false) => {
     setSelectedChatId(chatId);
+    if (isFirstUpload) {
+      setIsProcessingFirstUpload(true);
+    }
     refreshChats();
     closeSidebar();
-  };
-
-  const handleUploadComplete = async () => {
-    if (!selectedChatId) return;
-
-    // Refresh chat details to get new PDFs
-    try {
-      const data: ChatDetails = await fetchApi(`/api/chat/${selectedChatId}`);
-      setChatDetails(data);
-
-      // Show the newly uploaded PDF (last one)
-      if (data.pdfs.length > 0) {
-        setCurrentPdfIndex(data.pdfs.length - 1);
-      }
-
-      // Close the upload dialog
-      setShowUploadDialog(false);
-    } catch (err) {
-      console.error('Error refreshing chat:', err);
-    }
   };
 
   const handleAskQuestion = async () => {
@@ -240,6 +264,12 @@ export default function DashboardPage() {
   const handleDeletePdf = async () => {
     if (!currentPdf) return;
 
+    // Prevent deletion if only one PDF exists
+    if (chatPdfs.length <= 1) {
+      toast.warning("Can't delete - you need at least a single PDF to chat");
+      return;
+    }
+
     const confirmDelete = window.confirm(`Are you sure you want to delete "${currentPdf.realName}"?`);
     if (!confirmDelete) return;
 
@@ -247,6 +277,8 @@ export default function DashboardPage() {
       await fetchApi(`/api/files/delete/${currentPdf.id}`, {
         method: 'DELETE'
       });
+
+      toast.success('PDF deleted successfully');
 
       // Refresh chat details to get updated PDF list
       if (selectedChatId) {
@@ -262,7 +294,7 @@ export default function DashboardPage() {
       }
     } catch (err) {
       console.error('Error deleting PDF:', err);
-      alert('Failed to delete PDF. Please try again.');
+      toast.error('Failed to delete PDF. Please try again.');
     }
   };
 
@@ -347,6 +379,7 @@ export default function DashboardPage() {
             selectedChatId={null}
             onChatCreated={handleChatCreated}
             onUploadComplete={refreshChats}
+            onProcessingStatusChange={setUploadProcessingStatus}
             compact={false}
           />
         </div>
@@ -356,6 +389,23 @@ export default function DashboardPage() {
 
   // Chat selected but no PDFs uploaded
   if (!hasPdfs && !isLoadingChat) {
+    // Show processing state if this is the first upload and not yet completed
+    if (isProcessingFirstUpload && uploadProcessingStatus !== 'completed') {
+      return (
+        <div className="flex items-center justify-center h-[calc(100vh-8rem)]">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-12 w-12 animate-spin text-purple-500" />
+            <div className="text-center">
+              <h3 className="text-lg font-semibold mb-1">Processing Your PDF</h3>
+              <p className="text-sm text-muted-foreground">
+                Creating embeddings and preparing your document...
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex items-center justify-center h-[calc(100vh-8rem)]">
         <div className="max-w-md p-6 border rounded-lg bg-card">
@@ -370,6 +420,7 @@ export default function DashboardPage() {
               selectedChatId={selectedChatId}
               onChatCreated={handleChatCreated}
               onUploadComplete={handleUploadComplete}
+              onProcessingStatusChange={setUploadProcessingStatus}
             />
           </div>
         </div>
@@ -587,6 +638,7 @@ export default function DashboardPage() {
                   selectedChatId={selectedChatId}
                   onChatCreated={handleChatCreated}
                   onUploadComplete={handleUploadComplete}
+                  onProcessingStatusChange={setUploadProcessingStatus}
                   compact={true}
                 />
               </div>

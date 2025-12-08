@@ -1,6 +1,6 @@
 'use client';
 import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/ui/shadcn-io/dropzone';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { FileIcon, XIcon, FileTextIcon, UploadIcon } from 'lucide-react';
@@ -8,17 +8,23 @@ import { useApi } from '@/hooks/use-api';
 
 interface FileUploadProps {
     selectedChatId: string | null;
-    onChatCreated?: (chatId: string) => void;
+    onChatCreated?: (chatId: string, isFirstUpload?: boolean) => void;
     onUploadComplete?: () => void;
+    onProcessingStatusChange?: (status: 'uploading' | 'processing' | 'completed' | null) => void;
     compact?: boolean;
 }
 
-const FileUpload = ({ selectedChatId, onChatCreated, onUploadComplete, compact = false }: FileUploadProps) => {
+const FileUpload = ({ selectedChatId, onChatCreated, onUploadComplete, onProcessingStatusChange, compact = false }: FileUploadProps) => {
     const [files, setFiles] = useState<File[]>([]);
-    const { fetchApi, uploadFiles, isLoading, error } = useApi();
+    const { fetchApi, uploadFiles, isLoading, isProcessing, processingStatus, error } = useApi();
+
+    useEffect(() => {
+        if (onProcessingStatusChange) {
+            onProcessingStatusChange(processingStatus);
+        }
+    }, [processingStatus, onProcessingStatusChange]);
 
     const handleDrop = (newFiles: File[]) => {
-        console.log('New files:', newFiles);
         // Add new files to existing files (avoid duplicates) with max 3 files limit
         setFiles(prevFiles => {
             const existingNames = prevFiles.map(f => f.name);
@@ -54,6 +60,7 @@ const FileUpload = ({ selectedChatId, onChatCreated, onUploadComplete, compact =
 
         try {
             let chatId = selectedChatId;
+            let isFirstUpload = false;
 
             // If no chat is selected (New Chat), create a new chat first
             if (!chatId) {
@@ -62,28 +69,22 @@ const FileUpload = ({ selectedChatId, onChatCreated, onUploadComplete, compact =
                     body: JSON.stringify({})
                 });
 
-                console.log('Chat created:', chatResponse);
                 chatId = chatResponse.chatId;
-
-                // Notify parent component about new chat
+                isFirstUpload = true;
                 if (chatId) {
-                    onChatCreated?.(chatId);
+                    onChatCreated?.(chatId, isFirstUpload);
                 }
             }
 
-            // Upload PDFs to the chat (new or existing)
             if (chatId) {
-                const result = await uploadFiles(chatId, files);
-                console.log('Upload successful:', result);
-
-                // Clear files after successful upload
-                setFiles([]);
-
-                // Notify upload complete (for refreshing chats if uploading to existing)
-                onUploadComplete?.();
+                try {
+                    await uploadFiles(chatId, files, onProcessingStatusChange);
+                    setFiles([]);
+                    onUploadComplete?.();
+                } catch (uploadError) {
+                    // Error is handled by parent component
+                }
             }
-
-            // You can add toast notification here
         } catch (err) {
             console.error('Upload error:', err);
             // You can add toast notification here
@@ -173,13 +174,23 @@ const FileUpload = ({ selectedChatId, onChatCreated, onUploadComplete, compact =
                 <div className="flex flex-col gap-2">
                     <Button
                         onClick={handleUpload}
-                        disabled={isLoading}
+                        disabled={isLoading || isProcessing}
                         className="w-full"
                     >
                         {isLoading ? (
                             <>
                                 <span className="animate-spin mr-2">⏳</span>
                                 Uploading...
+                            </>
+                        ) : processingStatus === 'processing' ? (
+                            <>
+                                <span className="animate-spin mr-2">⚙️</span>
+                                Processing PDFs...
+                            </>
+                        ) : processingStatus === 'completed' ? (
+                            <>
+                                <span className="mr-2">✓</span>
+                                Completed!
                             </>
                         ) : (
                             <>
